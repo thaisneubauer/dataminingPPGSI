@@ -1,0 +1,39 @@
+Logical rules for the mushroom data sets.
+
+	Logical rules given below seem to be the simplest possible for the
+	mushroom dataset and therefore should be treated as benchmark results.
+
+	Disjunctive rules for poisonous mushrooms, from most general
+	to most specific:
+
+	P_1) odor=NOT(almond.OR.anise.OR.none)
+	     120 poisonous cases missed, 98.52% accuracy
+
+	P_2) spore-print-color=green
+	     48 cases missed, 99.41% accuracy
+         
+	P_3) odor=none.AND.stalk-surface-below-ring=scaly.AND.
+	          (stalk-color-above-ring=NOT.brown) 
+	     8 cases missed, 99.90% accuracy
+         
+	P_4) habitat=leaves.AND.cap-color=white
+	         100% accuracy     
+
+	Rule P_4) may also be
+
+	P_4') population=clustered.AND.cap_color=white
+
+	These rule involve 6 attributes (out of 22). Rules for edible
+	mushrooms are obtained as negation of the rules given above, for
+	example the rule:
+
+	odor=(almond.OR.anise.OR.none).AND.spore-print-color=NOT.green
+
+	gives 48 errors, or 99.41% accuracy on the whole dataset.
+
+	Several slightly more complex variations on these rules exist,
+	involving other attributes, such as gill_size, gill_spacing,
+	stalk_surface_above_ring, but the rules given above are the simplest
+	we have found.
+
+	https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names
