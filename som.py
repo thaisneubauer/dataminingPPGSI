@@ -40,8 +40,8 @@ def decreaseNeighbourhoodRadius(factor, radius):
 
 
 # diminui o learning rate
-def decreaseLearningRate(learning_rate):
-    return learning_rate - 0.01
+def decreaseLearningRate(learning_rate, factor):
+    return learning_rate - factor
 
 
 # In[5]:
@@ -94,7 +94,7 @@ def updateWeigths(w, winner, datapoint, m, radius_step, learning_rate):
     #Se esta dentro do raio de atualizacao
     if radius_step >= 0:
         # atualiza o peso do no vencedor
-        print('Atualizando neuronio',winner)
+        #print('Atualizando neuronio',winner)
         updateWeight(w, winner, datapoint, 1, learning_rate)
 
         # vizinho da direita. verifica se existe e tambem esta dentro da mesma linha da dimensao (ex. 4 nao eh vizinho do 5)
@@ -199,7 +199,7 @@ def topologicalError(dataSet, m, w):
 def readSpiral():
     dataSet = []
     maxWeight = 35
-    fileObject = open("data/spiral.txt", "r")
+    fileObject = open("data/clustering/spiral.txt", "r")
     for line in fileObject:
         sline = line.split("\t")
         dataSet.append([float(sline[0]), float(sline[1])])
@@ -207,11 +207,13 @@ def readSpiral():
     return dataSet
 
 def readT48():
+    dataSet = []
     maxWeight = 650
-    fileObject = open("data/t4.8k.txt", "r")
+    fileObject = open("data/clustering/t4.8k.txt", "r")
     for line in fileObject:
         sline = line.split(" ")
         dataSet.append([float(sline[0]), float(sline[1])])
+    return dataSet
 
 
 
@@ -242,14 +244,16 @@ def getWinnersColors(w, dataSet):
 # In[12]:
 
 # metodo inicial
-def som(id_img, dataSet, radius, m, minWeight, maxWeight, learning_rate):
+def som(path, id_img, dataSet, radius, m, minWeight, maxWeight, learning_rate, learning_rate_decrease_factor):
     #     dimensions, neuronsNumber, minValue, maxValue
     # Spiral => 1 ~ 35
     # T48 => 1 ~ 650
     w = initWeigths(2, m[0] * m[1], minWeight, maxWeight)
 
-    print("Initial Weights:")
-    print(w)
+    #print("Initial Weights:")
+    #print(w)
+
+    #print(dataSet)
 
     plt.figure(1)
     plt.subplot(211)
@@ -259,11 +263,11 @@ def som(id_img, dataSet, radius, m, minWeight, maxWeight, learning_rate):
     # enquanto a taxa de aprendizado eh maior que zero
     while(learning_rate > 0):
         count += 1
-        print('Epoca:',count)
+        #print('Epoca:',count)
         # para cada item dos dados, calcula o neuronio vencedor
         shuffle(dataSet)
         for i in range(0, len(dataSet)):
-            print('Dado:',i)
+            #print('Dado:',i)
             #distancia do neuronio vencedor
             winnerDist = sys.float_info.max
 
@@ -276,11 +280,11 @@ def som(id_img, dataSet, radius, m, minWeight, maxWeight, learning_rate):
                 if(d < winnerDist):
                     winner = neuronIndex
                     winnerDist = d
-            print('Neuronio vencedor:',winner)
+            #print('Neuronio vencedor:',winner)
             #atualiza os pesos do vencedor e seus vizinhos
             updateWeigths(w, winner, dataSet[i], m, radius, learning_rate)
 
-        learning_rate = decreaseLearningRate(learning_rate)
+        learning_rate = decreaseLearningRate(learning_rate, learning_rate_decrease_factor)
         radius = decreaseNeighbourhoodRadius(1, radius)
 
 
@@ -288,125 +292,138 @@ def som(id_img, dataSet, radius, m, minWeight, maxWeight, learning_rate):
     #print(w)
 
     plt.subplot(212)
+    plt.plot(getColumn(dataSet,0), getColumn(dataSet,1), "sb", getColumn(w,0), getColumn(w,1), "or")
+    plt.savefig(path + "/neurons_position_" + id_img + ".png")
+    plt.close()
 
-    df = pd.DataFrame(dataSet, columns=list('xy'))
+    if len(dataSet[0]) == 2:
+        df = pd.DataFrame(dataSet, columns=list('xy'))
+    else:
+        df = pd.DataFrame(dataSet, columns=list('xyz'))
     df['w'] = getWinnersColors(w, dataSet)
-    sns_plot = sns.pairplot(x_vars=['x'], y_vars=['y'], data=df, hue="w", size=10)
-    sns_plot.savefig(id_img+".png")
+    sns_plot = sns.pairplot(x_vars=['x'], y_vars=['y'], data=df, hue="w", size=12)
+    sns_plot.savefig(path + "/cluster_result_" + id_img + ".png")
 
-    uMatrix(w,m)
+    uMatrix(path, id_img, w, m)
 
     return [quantizationError(dataSet, w),topologicalError(dataSet, m, w)]
 
 def mediaAoRedorUMatrix(u, i, j):
     soma = 0
     count = 0
-    if i - 1 > 0:
+    #print(str(i) + " - " + str(j))
+    if i - 1 >= 0:
         soma += u[i-1][j]
         count += 1
     if i + 1 < len(u):
         soma += u[i+1][j]
         count += 1
-    if j - 1 > 0:
+    if j - 1 >= 0:
         soma += u[i][j-1]
         count += 1
     if j + 1 < len(u[i]):
         soma += u[i][j+1]
         count += 1
+    #print(" -> " + str(soma) + " / " + str(count) + " " + str(soma/count))
     return soma/count
 
-def uMatrix(w, m):
-    u = [[0 for i in range((2 * m[0]) - 1)] for j in range((2 * m[1]) - 1)]
+def uMatrix(path, id_img, w, m):
+    u = [[0 for i in range((2 * m[1]) - 1)] for j in range((2 * m[0]) - 1)]
 
     k = 0
     l = 0
     for i in range(0, len(u)):
         for j in range(0, len(u[i])):
-            print(str(i) + "," + str(j))
+            #print(str(i) + "," + str(j))
             #linha par e coluna impar
             if i % 2 == 0 and j % 2 != 0:
-                print(" -> " + str(k) + "," + str(k+1))
-                u[i][j] = dist(w[k], w[k+1])
+            #    print(" -> " + str(k) + "," + str(k+1))
+                u[i][j] = -dist(w[k], w[k+1])
                 k = k + 1
             #linha impar e coluna par
             elif i % 2 != 0 and j % 2 == 0:
-                print(" -> " + str(l) + "," + str(l + m[1]))
-                u[i][j] = dist(w[l], w[l + m[1]])
+            #    print(" -> " + str(l) + "," + str(l + (m[1])))
+                u[i][j] = -dist(w[l], w[l + (m[1])])
                 l = l + 1
-
-    print("Primeira matriz U:")
-    print(u)
 
     for i in range(0, len(u)):
         for j in range(0, len(u[i])):
-            if(i != 0 and i != len(u)-1 and j != 0 and j != len(u[i])-1):
+            if (i % 2 == 0 and j % 2 == 0) or (i % 2 != 0 and j % 2 != 0) or (i != 0 and j != 0) or (i != 0 and j != len(u[0])-1) or (i != len(u)-1 and j != 0) or (i != len(u)-1 and j != len(u[0])-1):
                 u[i][j] = mediaAoRedorUMatrix(u, i, j)
-    print("Segunda matriz U:")
-    print(u)
 
     u[0][0] = mediaAoRedorUMatrix(u, 0, 0)
     u[0][len(u[0])-1] = mediaAoRedorUMatrix(u, 0, len(u[0])-1)
     u[len(u)-1][0] = mediaAoRedorUMatrix(u, len(u)-1, 0)
     u[len(u)-1][len(u[0])-1] = mediaAoRedorUMatrix(u, len(u)-1, len(u[0])-1)
 
-    print(u)
-    print(w)
-
     plt.clf()
     plt.contourf(u, cmap = "rainbow")
     plt.colorbar()
-
-    '''heatmap, xedges, yedges = np.histogram2d(x, y, bins=50)
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-
-    plt.clf()
-    plt.imshow(heatmap.T, extent=extent, origin='lower')
-    plt.show()'''
-    #plt.imshow(u, interpolation='nearest')
-    #plt.grid(True)
-    plt.savefig("u.png")
+    plt.savefig(path + "/u_matrix_" + id_img + ".png")
 
 # In[1]:
 
 
 def main():
-    '''
     #values to be tested
-    data_path = 'data/'
+    data_path = 'data/clustering/'
     extensao = '.txt'
     datasets_min_max = {'spiral': {'min': -10, 'max': 50},
-                        't4.8k': {'min': 10, 'max': 800}}
-    topologies = [{'min': 2,'max': 4},{'min': 2,'max': 4}]
-    radius_values = [1,2,3]
-    learning_rates = [0.7,0.8,0.9]
+                        't4.8k': {'min': 10, 'max': 600}}
+    #topologies = [{'min': 1,'max': 1},{'min': 10,'max': 5}]
+    topologiesX = [20]
+    topologiesY = [20]
+    radius_values = [2]
+    learning_rates = [0.9]
+    learning_rate_decrease_factors = [0.01]
 
-    columns = ['dataset','radius','learning_rate','topology', 'quantization_error', 'topological_error']
+    columns = ['dataset','radius','learning_rgmate','topology', 'learning_rate_decrease_factor', 'quantization_error', 'topological_error']
     tests = pd.DataFrame(columns=columns)
+    path_results = "results_clustering_UMatrix"
 
-    for filename in datasets_min_max:
-        dataset = pd.read_csv(data_path+filename+extensao, sep='\t', header=None)
-        dataset = dataset.iloc[:,[0,1]]
+    '''for filename in datasets_min_max:
+        if filename == 'spiral':
+            dataset = pd.read_csv(data_path+filename+extensao, sep='\t', header=None)
+        else:
+            dataset = pd.read_csv(data_path+filename+extensao, sep=' ', header=None)
         dataset.head(5)
-        for topology_y in range(topologies[0]['min'],topologies[1]['max']+1):
-            for topology_x in range(topologies[1]['min'],topologies[0]['max']+1):
+        #for topology_y in range(topologies[0]['min'],topologies[1]['max']+1):
+        #    for topology_x in range(topologies[1]['min'],topologies[0]['max']+1):
+        for topology_y in topologiesY:
+            for topology_x in topologiesX:
                 m = [topology_x, topology_y]
                 for radius in radius_values:
                     for learning_rate in learning_rates:
-                        combination = [filename,str(radius),str(learning_rate),str(topology_x) + 'x' + str(topology_y)]
-                        img_str = '_'.join(combination)
-                        print(img_str)
-                        result = som(img_str, dataset.values.tolist(), radius, m, datasets_min_max[filename]['min'], datasets_min_max[filename]['max'], learning_rate)
-                        combination.append(result[0])
-                        combination.append(result[1])
-                        tests = tests.append(pd.DataFrame([combination], columns=columns), ignore_index=True)
-                        # SOM calls
+                        for learning_rate_decrease_factor in learning_rate_decrease_factors:
+                            combination = [filename, "rd:" + str(radius), "lr:" + str(learning_rate), str(topology_x) + 'x' + str(topology_y), "lrdf:" + str(learning_rate_decrease_factor)]
+                            img_str = '_'.join(combination)
+                            print(img_str)
+                            result = som(path_results,img_str, dataset.values.tolist(), radius, m, datasets_min_max[filename]['min'], datasets_min_max[filename]['max'], learning_rate, learning_rate_decrease_factor)
+                            combination.append(result[0])
+                            combination.append(result[1])
+                            tests = tests.append(pd.DataFrame([combination], columns=columns), ignore_index=True)
+                            # SOM calls
     print(tests)
+    tests.to_csv(path_or_buf=path_results+"/test_results.txt", sep='\t', index=False, header=True)
+
     '''
+    spiral = readSpiral()
+    tk = readT48()
+
+    plt.figure(1)
+    plt.subplot(211)
+    plt.plot(getColumn(spiral,0), getColumn(spiral,1), "sb")
+
+    plt.subplot(212)
+    plt.plot(getColumn(tk,0), getColumn(tk,1), "sb")
+    plt.savefig("dataFigs.png")
+    plt.close()
+
     # Topologia da rede: a quantidade de neurionios em cada dimensao para
     # calculo dos vizinhos. A multiplicacao dos numeros deve ser a qntd de neuronios
-    m = [100, 100]
+    #m = [2, 5]
     #dataSet=[[10, 10], [1, 1], [9,9], [2, 2], [10, 9], [2, 1], [9, 10], [1, 2]]
-    som("teste0", readSpiral(), 2, m, 1, 30, 0.9)
+    #som("teste0", readSpiral(), 2, m, 1, 1, 0.9)'''
 
 if __name__ == "__main__":
     main()
